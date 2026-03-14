@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-navy: #1E2A38;
+  --color-slate-blue: #3A5A78;
+  --color-emerald: #2E8B57;
+  --color-off-white: #F5F7FA;
+  --color-muted-red: #C94C4C;
+  --color-soft-amber: #D9A441;
+  
+  --shadow-subtle: 0 2px 4px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+@layer base {
+  body {
+    @apply bg-off-white text-navy antialiased font-sans;
+  }
+}
+
+.card {
+  @apply bg-white rounded-xl border border-slate-200 shadow-card;
+}
+
+.btn-primary {
+  @apply bg-emerald text-white px-4 py-2 rounded-lg font-semibold hover:bg-emerald/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  @apply bg-white border border-slate-200 text-slate-blue px-4 py-2 rounded-lg font-semibold hover:bg-slate-50 transition-all;
+}
+
+.input-field {
+  @apply w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-blue/20 outline-none transition-all;
+}
+
+.badge {
+  @apply px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider;
+}
+
+.badge-success { @apply bg-emerald/10 text-emerald; }
+.badge-warning { @apply bg-soft-amber/10 text-soft-amber; }
+.badge-error { @apply bg-muted-red/10 text-muted-red; }
+.badge-info { @apply bg-slate-blue/10 text-slate-blue; }
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full;
+}
+
