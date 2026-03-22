@@ -1,21 +1,63 @@
 import React, { useState } from 'react';
-import { Upload, CheckCircle2, ChevronRight, FileText } from 'lucide-react';
+import { Upload, CheckCircle2, ChevronRight, FileText, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { JobListing } from '../types/hr';
+import { UserData } from '../App';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 
-const CandidateRegistration: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+interface CandidateRegistrationProps {
+  selectedJob: JobListing | null;
+  userData: UserData;
+  onComplete: () => void;
+}
+
+const CandidateRegistration: React.FC<CandidateRegistrationProps> = ({ selectedJob, userData, onComplete }) => {
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [coverLetter, setCoverLetter] = useState('');
+
+  const handleFinalSubmit = async () => {
+    if (!selectedJob) return;
+
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'applications'), {
+        candidateId: userData.uid,
+        jobId: selectedJob.id,
+        jobTitle: selectedJob.title,
+        department: selectedJob.department,
+        location: selectedJob.location,
+        displayName: userData.displayName,
+        email: userData.email,
+        linkedinUrl: userData.linkedinUrl,
+        coverLetter: coverLetter,
+        status: 'Applied',
+        appliedAt: serverTimestamp(),
+        lastUpdate: serverTimestamp()
+      });
+      setStep(3);
+    } catch (error) {
+      console.error("Error submitting application:", error);
+      alert("Failed to submit application. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
-      <div className="text-center">
+      <div className="text-center text-left">
         <h1 className="text-3xl font-bold text-navy">Complete Your Application</h1>
-        <p className="text-slate-500 mt-2">Provide your details to apply for the position.</p>
+        <p className="text-slate-500 mt-2">
+          Applying for: <span className="font-bold text-navy">{selectedJob?.title || 'Selected Position'}</span>
+        </p>
       </div>
 
       <div className="card p-8 space-y-8 relative overflow-hidden">
         {/* Progress Bar Background */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-slate-100">
-          <motion.div 
+          <motion.div
             className="h-full bg-emerald"
             initial={{ width: '33%' }}
             animate={{ width: `${(step / 3) * 100}%` }}
@@ -29,22 +71,20 @@ const CandidateRegistration: React.FC<{ onComplete: () => void }> = ({ onComplet
             { id: 3, label: 'Success' }
           ].map((s) => (
             <div key={s.id} className="flex flex-col items-center gap-2">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-                step === s.id ? 'bg-navy text-white scale-110 shadow-lg shadow-navy/20' : 
-                step > s.id ? 'bg-emerald text-white' : 'bg-slate-100 text-slate-400'
-              }`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step === s.id ? 'bg-navy text-white scale-110 shadow-lg shadow-navy/20' :
+                  step > s.id ? 'bg-emerald text-white' : 'bg-slate-100 text-slate-400'
+                }`}>
                 {step > s.id ? <CheckCircle2 size={20} /> : s.id}
               </div>
-              <span className={`text-[10px] font-bold uppercase tracking-widest ${
-                step === s.id ? 'text-navy' : 'text-slate-400'
-              }`}>{s.label}</span>
+              <span className={`text-[10px] font-bold uppercase tracking-widest ${step === s.id ? 'text-navy' : 'text-slate-400'
+                }`}>{s.label}</span>
             </div>
           ))}
         </div>
 
         <AnimatePresence mode="wait">
           {step === 1 && (
-            <motion.div 
+            <motion.div
               key="step1"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -67,51 +107,62 @@ const CandidateRegistration: React.FC<{ onComplete: () => void }> = ({ onComplet
               </div>
               <div className="flex items-center gap-2 p-4 bg-slate-50 rounded-xl border border-slate-100">
                 <FileText size={20} className="text-slate-400" />
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-navy">Already have a profile?</p>
-                  <p className="text-[10px] text-slate-500">Sign in to apply with your saved resume.</p>
+                <div className="flex-1 text-left">
+                  <p className="text-xs font-bold text-navy">Using Saved Profile</p>
+                  <p className="text-[10px] text-slate-500">Applying as {userData.displayName} ({userData.email})</p>
                 </div>
-                <button className="text-xs font-bold text-slate-blue hover:underline">Sign In</button>
               </div>
             </motion.div>
           )}
 
           {step === 2 && (
-            <motion.div 
+            <motion.div
               key="step2"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <h3 className="text-lg font-bold text-navy">Personal Information</h3>
+              <h3 className="text-lg font-bold text-navy">Application Details</h3>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full Name</label>
-                  <input type="text" className="input-field" placeholder="John Doe" />
+                  <input type="text" readOnly className="input-field bg-slate-50 text-slate-400" value={userData.displayName} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email Address</label>
-                  <input type="email" className="input-field" placeholder="john@example.com" />
+                  <input type="email" readOnly className="input-field bg-slate-50 text-slate-400" value={userData.email || ''} />
                 </div>
                 <div className="space-y-1.5 col-span-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">LinkedIn Profile</label>
-                  <input type="url" className="input-field" placeholder="https://linkedin.com/in/johndoe" />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">LinkedIn Profile (from Settings)</label>
+                  <input type="url" readOnly className="input-field bg-slate-50 text-slate-400" value={userData.linkedinUrl || 'No URL saved'} />
                 </div>
                 <div className="space-y-1.5 col-span-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cover Letter (Optional)</label>
-                  <textarea className="input-field min-h-[120px] py-3" placeholder="Tell us why you're a great fit..." />
+                  <textarea
+                    className="input-field min-h-[120px] py-3 text-left"
+                    placeholder="Tell us why you're a great fit..."
+                    value={coverLetter}
+                    onChange={(e) => setCoverLetter(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="flex justify-between items-center pt-4">
                 <button onClick={() => setStep(1)} className="text-sm font-bold text-slate-400 hover:text-navy transition-colors">Back</button>
-                <button onClick={() => setStep(3)} className="btn-primary px-10">Submit Application</button>
+                <button
+                  onClick={handleFinalSubmit}
+                  disabled={isSubmitting}
+                  className="btn-primary px-10 flex items-center gap-2"
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : null}
+                  <span>Submit Application</span>
+                </button>
               </div>
             </motion.div>
           )}
 
           {step === 3 && (
-            <motion.div 
+            <motion.div
               key="step3"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}

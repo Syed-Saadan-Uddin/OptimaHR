@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  Plus, 
-  Trash2, 
-  CheckCircle2, 
-  TrendingUp, 
+import {
+  Plus,
+  Trash2,
+  CheckCircle2,
+  TrendingUp,
   Star,
   MessageSquare,
   ChevronRight,
@@ -13,6 +13,9 @@ import { motion } from 'motion/react';
 import { PerformanceGoal } from '../types/hr';
 
 const PerformanceAppraisal: React.FC<{ role: string }> = ({ role }) => {
+  const isReviewer = role === 'DEPT_HEAD' || role === 'HR_ADMIN';
+  const isEmployee = role === 'EMPLOYEE';
+
   const [goals, setGoals] = useState<PerformanceGoal[]>([
     { id: '1', title: 'Improve platform performance by 20%', weight: 40, score: 4.5 },
     { id: '2', title: 'Implement new onboarding wizard', weight: 30, score: 4.0 },
@@ -28,10 +31,10 @@ const PerformanceAppraisal: React.FC<{ role: string }> = ({ role }) => {
         <div>
           <h1 className="text-2xl font-bold text-navy">Performance Appraisal</h1>
           <p className="text-slate-500 text-sm mt-1">
-            {role === 'EMPLOYEE' ? 'Set your goals and track your progress.' : 'Review and rate team performance.'}
+            {isEmployee ? 'Set your goals and track your progress.' : 'Review and rate team performance.'}
           </p>
         </div>
-        {role === 'EMPLOYEE' && (
+        {isEmployee && (
           <button className="btn-primary flex items-center gap-2">
             <Plus size={18} />
             <span>Add New Goal</span>
@@ -56,7 +59,7 @@ const PerformanceAppraisal: React.FC<{ role: string }> = ({ role }) => {
                       <span className="text-sm font-bold text-navy">{goal.title}</span>
                       <span className="badge badge-info">{goal.weight}% Weight</span>
                     </div>
-                    {role === 'DEPT_HEAD' && (
+                    {isReviewer && (
                       <div className="flex items-center gap-4 mt-4">
                         <div className="flex-1">
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rating (1-5)</label>
@@ -69,7 +72,7 @@ const PerformanceAppraisal: React.FC<{ role: string }> = ({ role }) => {
                     )}
                   </div>
                   <div className="flex items-center gap-2 ml-4">
-                    {role === 'EMPLOYEE' && (
+                    {isEmployee && (
                       <button className="p-2 text-slate-300 hover:text-muted-red transition-all">
                         <Trash2 size={18} />
                       </button>
@@ -81,7 +84,7 @@ const PerformanceAppraisal: React.FC<{ role: string }> = ({ role }) => {
                 </div>
               ))}
             </div>
-            {role === 'EMPLOYEE' && totalWeight !== 100 && (
+            {isEmployee && totalWeight !== 100 && (
               <div className="p-4 bg-soft-amber/10 border-t border-soft-amber/20 flex items-center gap-3">
                 <AlertCircle size={18} className="text-soft-amber" />
                 <p className="text-xs text-soft-amber font-medium">Total weight must equal 100% before submission.</p>
@@ -89,7 +92,7 @@ const PerformanceAppraisal: React.FC<{ role: string }> = ({ role }) => {
             )}
           </div>
 
-          {role === 'DEPT_HEAD' && (
+          {isReviewer && (
             <div className="card p-6 space-y-4">
               <h3 className="font-bold text-navy">Manager Remarks</h3>
               <textarea className="input-field h-32 resize-none" placeholder="Provide detailed feedback on performance and areas of improvement..."></textarea>
@@ -127,9 +130,8 @@ const PerformanceAppraisal: React.FC<{ role: string }> = ({ role }) => {
                 { label: 'Annual Appraisal', date: 'Dec 10, 2026', status: 'pending' },
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-4 relative">
-                  <div className={`w-4 h-4 rounded-full border-2 border-white z-10 mt-1 ${
-                    item.status === 'completed' ? 'bg-emerald' : 'bg-slate-200'
-                  }`} />
+                  <div className={`w-4 h-4 rounded-full border-2 border-white z-10 mt-1 ${item.status === 'completed' ? 'bg-emerald' : 'bg-slate-200'
+                    }`} />
                   <div>
                     <p className="text-xs font-bold text-navy">{item.label}</p>
                     <p className="text-[10px] text-slate-400">{item.date}</p>

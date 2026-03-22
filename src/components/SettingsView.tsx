@@ -1,38 +1,63 @@
-import React, { useState } from 'react';
-import { 
-  User, 
-  Building2, 
-  Bell, 
-  Shield, 
-  CreditCard, 
-  Globe, 
-  Mail, 
+import React, { useState, useEffect } from 'react';
+import {
+  User,
+  Building2,
+  Bell,
+  Shield,
+  CreditCard,
+  Globe,
+  Mail,
   Lock,
   Save,
   Camera,
-  CheckCircle2
+  CheckCircle2,
+  Linkedin
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserRole } from '../types/hr';
+import { UserData } from '../App';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface SettingsViewProps {
-  role: UserRole;
+  userData: UserData;
 }
 
-const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
+const SettingsView: React.FC<SettingsViewProps> = ({ userData }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'org' | 'payroll' | 'notifications' | 'security'>('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const isAdmin = role === 'HR_ADMIN';
+  // Profile State
+  const [displayName, setDisplayName] = useState(userData.displayName);
+  const [linkedinUrl, setLinkedinUrl] = useState(userData.linkedinUrl);
+  const [phone, setPhone] = useState('+1 (555) 123-4567'); // Mock phone for now
 
-  const handleSave = () => {
+  // Sync state if userData changes from App.tsx (e.g. initial load)
+  useEffect(() => {
+    setDisplayName(userData.displayName);
+    setLinkedinUrl(userData.linkedinUrl);
+  }, [userData.displayName, userData.linkedinUrl]);
+
+  const isAdmin = userData.role === 'HR_ADMIN';
+  const isCandidate = userData.role === 'CANDIDATE';
+
+  const handleSaveProfile = async () => {
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      const userRef = doc(db, 'users', userData.uid);
+      await updateDoc(userRef, {
+        displayName,
+        linkedinUrl
+      });
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-    }, 1500);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("Failed to save profile changes.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const tabs = [
@@ -43,7 +68,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
     { id: 'security', label: 'Security', icon: Shield, roles: ['HR_ADMIN', 'DEPT_HEAD', 'EMPLOYEE', 'CANDIDATE'] },
   ];
 
-  const filteredTabs = tabs.filter(tab => tab.roles.includes(role));
+  const filteredTabs = tabs.filter(tab => tab.roles.includes(userData.role));
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -55,7 +80,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
         <div className="flex items-center gap-3">
           <AnimatePresence>
             {showSuccess && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
@@ -66,8 +91,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
               </motion.div>
             )}
           </AnimatePresence>
-          <button 
-            onClick={handleSave}
+          <button
+            onClick={handleSaveProfile}
             disabled={isSaving}
             className="btn-primary flex items-center gap-2 min-w-[140px] justify-center"
           >
@@ -84,7 +109,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Sidebar Tabs */}
         <div className="lg:w-64 flex-shrink-0 space-y-1">
           {filteredTabs.map((tab) => {
             const Icon = tab.icon;
@@ -93,11 +117,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                  isActive 
-                    ? 'bg-white text-navy shadow-sm border border-slate-200' 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${isActive
+                    ? 'bg-white text-navy shadow-sm border border-slate-200'
                     : 'text-slate-500 hover:bg-white/50 hover:text-navy'
-                }`}
+                  }`}
               >
                 <Icon size={18} className={isActive ? 'text-emerald' : 'text-slate-400'} />
                 <span>{tab.label}</span>
@@ -106,12 +129,11 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
           })}
         </div>
 
-        {/* Content Area */}
         <div className="flex-1">
           <div className="card p-8">
             <AnimatePresence mode="wait">
               {activeTab === 'profile' && (
-                <motion.div 
+                <motion.div
                   key="profile"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -121,14 +143,14 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
                   <div className="flex items-center gap-6 pb-8 border-b border-slate-100">
                     <div className="relative group">
                       <div className="w-24 h-24 rounded-2xl overflow-hidden border-4 border-white shadow-md">
-                        <img 
-                          src={`https://picsum.photos/seed/${role}/200/200`} 
-                          alt="Profile" 
+                        <img
+                          src={`https://picsum.photos/seed/${userData.role}/200/200`}
+                          alt="Profile"
                           className="w-full h-full object-cover"
                           referrerPolicy="no-referrer"
                         />
                       </div>
-                      <button className="absolute -bottom-2 -right-2 p-2 bg-white rounded-xl shadow-lg border border-slate-100 text-slate-500 hover:text-emerald transition-all">
+                      <button title="Change Avatar" className="absolute -bottom-2 -right-2 p-2 bg-white rounded-xl shadow-lg border border-slate-100 text-slate-500 hover:text-emerald transition-all">
                         <Camera size={16} />
                       </button>
                     </div>
@@ -145,22 +167,53 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full Name</label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input type="text" className="input-field pl-10" defaultValue="John Doe" />
+                      <div className="relative group">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-navy" size={16} />
+                        <input
+                          type="text"
+                          className="input-field pl-10"
+                          value={displayName}
+                          onChange={(e) => setDisplayName(e.target.value)}
+                        />
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email Address</label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input type="email" className="input-field pl-10" defaultValue="john.doe@optimahr.com" />
+                        <input type="email" readOnly className="input-field pl-10 bg-slate-50 text-slate-400 cursor-not-allowed" value={userData.email || ''} />
                       </div>
                     </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">LinkedIn Profile URL</label>
+                      <div className="relative group">
+                        <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-navy" size={16} />
+                        <input
+                          type="url"
+                          className="input-field pl-10"
+                          placeholder="https://linkedin.com/in/username"
+                          value={linkedinUrl}
+                          onChange={(e) => setLinkedinUrl(e.target.value)}
+                        />
+                      </div>
+                      {isCandidate && (
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Tip: We'll use this to pre-fill your job applications.
+                        </p>
+                      )}
+                    </div>
+
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Phone Number</label>
-                      <input type="tel" className="input-field" defaultValue="+1 (555) 123-4567" />
+                      <input
+                        type="tel"
+                        className="input-field"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                      />
                     </div>
+
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Language</label>
                       <div className="relative">
@@ -169,7 +222,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
                           <option>English (US)</option>
                           <option>Spanish</option>
                           <option>French</option>
-                          <option>German</option>
                         </select>
                       </div>
                     </div>
@@ -178,7 +230,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
               )}
 
               {activeTab === 'org' && isAdmin && (
-                <motion.div 
+                <motion.div
                   key="org"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -190,29 +242,15 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Company Name</label>
-                        <input type="text" className="input-field" defaultValue="OptimaHR Solutions" />
+                        <input type="text" title="Company Name" className="input-field" defaultValue="OptimaHR Solutions" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Registration Number</label>
-                        <input type="text" className="input-field" defaultValue="REG-12345678" />
+                        <input type="text" title="Registration Number" className="input-field" defaultValue="REG-12345678" />
                       </div>
                       <div className="space-y-1.5 col-span-2">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Headquarters Address</label>
-                        <textarea className="input-field h-24" defaultValue="123 Enterprise Way, Tech City, State, Country - 101010" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 pt-8 border-t border-slate-100">
-                    <h3 className="text-lg font-bold text-navy">Branding</h3>
-                    <div className="flex items-center gap-6">
-                      <div className="w-16 h-16 bg-emerald rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald/20">
-                        <Building2 size={32} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-navy">Company Logo</p>
-                        <p className="text-xs text-slate-500">This will appear on all payslips and reports.</p>
-                        <button className="mt-2 text-xs font-bold text-emerald hover:underline">Change Logo</button>
+                        <textarea title="Headquarters Address" className="input-field h-24" defaultValue="123 Enterprise Way, Tech City, State, Country - 101010" />
                       </div>
                     </div>
                   </div>
@@ -220,7 +258,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
               )}
 
               {activeTab === 'payroll' && isAdmin && (
-                <motion.div 
+                <motion.div
                   key="payroll"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -231,19 +269,12 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
                     <h3 className="text-lg font-bold text-navy">Statutory Compliance</h3>
                     <div className="space-y-4">
                       {[
-                        { label: 'Income Tax (TDS)', value: '10%', desc: 'Standard deduction for all employees' },
-                        { label: 'Provident Fund (PF)', value: '12%', desc: 'Employee contribution rate' },
-                        { label: 'Professional Tax', value: '$20', desc: 'Fixed monthly deduction' },
+                        { label: 'Income Tax (TDS)', value: '10%' },
+                        { label: 'Provident Fund (PF)', value: '12%' },
                       ].map((item, i) => (
                         <div key={i} className="flex items-center justify-between p-4 bg-off-white rounded-xl border border-slate-100">
-                          <div>
-                            <p className="text-sm font-bold text-navy">{item.label}</p>
-                            <p className="text-[10px] text-slate-500">{item.desc}</p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <input type="text" className="input-field w-24 text-right font-bold" defaultValue={item.value} />
-                            <button className="p-2 text-slate-400 hover:text-navy transition-all"><Lock size={16} /></button>
-                          </div>
+                          <p className="text-sm font-bold text-navy">{item.label}</p>
+                          <input type="text" title={item.label} className="input-field w-24 text-right font-bold" defaultValue={item.value} />
                         </div>
                       ))}
                     </div>
@@ -252,73 +283,16 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
               )}
 
               {activeTab === 'notifications' && (
-                <motion.div 
-                  key="notifications"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-8"
-                >
-                  <div className="space-y-6">
-                    <h3 className="text-lg font-bold text-navy">Email Preferences</h3>
-                    <div className="space-y-4">
-                      {[
-                        { label: 'Payroll Notifications', desc: 'Receive email when payslip is generated', checked: true },
-                        { label: 'Leave Approvals', desc: 'Notify when leave request status changes', checked: true },
-                        { label: 'Performance Reviews', desc: 'Alerts for upcoming appraisal cycles', checked: false },
-                        { label: 'Company Announcements', desc: 'Stay updated with company-wide news', checked: true },
-                      ].map((item, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 bg-off-white rounded-xl border border-slate-100">
-                          <div className="flex-1">
-                            <p className="text-sm font-bold text-navy">{item.label}</p>
-                            <p className="text-[10px] text-slate-500">{item.desc}</p>
-                          </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" className="sr-only peer" defaultChecked={item.checked} />
-                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald"></div>
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                <motion.div key="notifications" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                  <h3 className="text-lg font-bold text-navy">Email Preferences</h3>
+                  <p className="text-sm text-slate-500">Configure how and when you want to receive emails.</p>
                 </motion.div>
               )}
 
               {activeTab === 'security' && (
-                <motion.div 
-                  key="security"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-8"
-                >
-                  <div className="space-y-6">
-                    <h3 className="text-lg font-bold text-navy">Password & Authentication</h3>
-                    <div className="grid grid-cols-1 gap-6">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Current Password</label>
-                        <input type="password" title="Current Password" placeholder="••••••••" className="input-field" />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">New Password</label>
-                          <input type="password" title="New Password" placeholder="••••••••" className="input-field" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Confirm New Password</label>
-                          <input type="password" title="Confirm New Password" placeholder="••••••••" className="input-field" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="p-4 bg-navy/5 rounded-xl border border-navy/10 flex items-start gap-4">
-                      <Shield className="text-navy mt-1" size={20} />
-                      <div>
-                        <p className="text-sm font-bold text-navy">Two-Factor Authentication (2FA)</p>
-                        <p className="text-xs text-slate-500 mt-1">Add an extra layer of security to your account by enabling 2FA.</p>
-                        <button className="mt-3 btn-secondary text-xs px-4 py-1.5">Enable 2FA</button>
-                      </div>
-                    </div>
-                  </div>
+                <motion.div key="security" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                  <h3 className="text-lg font-bold text-navy">Security Settings</h3>
+                  <p className="text-sm text-slate-500">Manage your password and account security options.</p>
                 </motion.div>
               )}
             </AnimatePresence>

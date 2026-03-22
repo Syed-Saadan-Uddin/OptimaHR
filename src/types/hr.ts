@@ -26,7 +26,8 @@ export interface Employee {
   department: string;
   email: string;
   joiningDate: string;
-  status: 'Active' | 'Inactive';
+  status: string;
+  salary?: number;
 }
 
 export interface LeaveBalance {
@@ -54,6 +55,7 @@ export interface PerformanceGoal {
 
 export interface Payslip {
   id: string;
+  employeeId: string;
   month: string;
   year: number;
   gross: number;
