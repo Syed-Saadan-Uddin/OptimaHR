@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Clock, 
   CheckCircle2, 
@@ -11,6 +11,9 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { db, auth } from '../firebase';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../firestoreUtils';
 
 interface Application {
   id: string;
@@ -19,40 +22,44 @@ interface Application {
   location: string;
   appliedDate: string;
   status: 'Applied' | 'Shortlisted' | 'Interviewing' | 'Rejected' | 'Hired';
-  lastUpdate: string;
+  lastUpdate?: string;
 }
 
-const mockApplications: Application[] = [
-  { 
-    id: 'APP-001', 
-    jobTitle: 'Senior Frontend Engineer', 
-    department: 'Engineering', 
-    location: 'Remote', 
-    appliedDate: 'Feb 24, 2026', 
-    status: 'Interviewing', 
-    lastUpdate: '2 hours ago' 
-  },
-  { 
-    id: 'APP-002', 
-    jobTitle: 'Product Designer', 
-    department: 'Design', 
-    location: 'New York, NY', 
-    appliedDate: 'Feb 20, 2026', 
-    status: 'Applied', 
-    lastUpdate: '1 day ago' 
-  },
-  { 
-    id: 'APP-003', 
-    jobTitle: 'QA Engineer', 
-    department: 'Engineering', 
-    location: 'Remote', 
-    appliedDate: 'Feb 15, 2026', 
-    status: 'Rejected', 
-    lastUpdate: '3 days ago' 
-  },
-];
-
 const MyApplications: React.FC = () => {
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const q = query(
+      collection(db, 'applications'),
+      where('candidateId', '==', auth.currentUser.uid),
+      orderBy('appliedDate', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const apps = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Application[];
+      setApplications(apps);
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'applications');
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-slate-200 border-t-navy rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <div>
@@ -61,7 +68,7 @@ const MyApplications: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {mockApplications.map((app, idx) => (
+        {applications.map((app, idx) => (
           <motion.div 
             key={app.id}
             initial={{ opacity: 0, y: 20 }}
@@ -69,14 +76,14 @@ const MyApplications: React.FC = () => {
             transition={{ delay: idx * 0.1 }}
             className="card p-6 hover:border-slate-300 transition-all group"
           >
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
               <div className="flex gap-4">
-                <div className="w-12 h-12 bg-off-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-navy transition-colors">
+                <div className="w-12 h-12 bg-off-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-navy transition-colors shrink-0">
                   <Briefcase size={24} />
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-bold text-navy">{app.jobTitle}</h3>
+                <div className="space-y-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="text-lg font-bold text-navy truncate">{app.jobTitle}</h3>
                     <span className={`badge ${
                       app.status === 'Hired' ? 'badge-success' :
                       app.status === 'Rejected' ? 'badge-error' :
@@ -85,26 +92,26 @@ const MyApplications: React.FC = () => {
                       {app.status}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-slate-500">
-                    <span className="flex items-center gap-1"><MapPin size={14} /> {app.location}</span>
-                    <span className="flex items-center gap-1"><Calendar size={14} /> Applied on {app.appliedDate}</span>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                    <span className="flex items-center gap-1"><MapPin size={14} /> {app.location || 'Remote'}</span>
+                    <span className="flex items-center gap-1"><Calendar size={14} /> Applied on {new Date(app.appliedDate).toLocaleDateString()}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-8">
-                <div className="hidden sm:block text-right">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-8">
+                <div className="hidden lg:block text-right">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last Activity</p>
-                  <p className="text-xs font-medium text-navy mt-0.5">{app.lastUpdate}</p>
+                  <p className="text-xs font-medium text-navy mt-0.5">{app.lastUpdate || 'Recently'}</p>
                 </div>
                 <div className="h-10 w-px bg-slate-100 hidden lg:block" />
-                <div className="flex gap-2">
-                  <button className="btn-secondary text-xs flex items-center gap-2">
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button className="btn-secondary text-xs flex items-center gap-2 flex-1 sm:flex-none justify-center">
                     <FileText size={16} />
                     <span>View Details</span>
                   </button>
                   {app.status === 'Interviewing' && (
-                    <button className="btn-primary text-xs flex items-center gap-2">
+                    <button className="btn-primary text-xs flex items-center gap-2 flex-1 sm:flex-none justify-center">
                       <MessageSquare size={16} />
                       <span>Join Interview</span>
                     </button>
@@ -114,8 +121,8 @@ const MyApplications: React.FC = () => {
             </div>
 
             {/* Application Progress Timeline */}
-            <div className="mt-8 pt-6 border-t border-slate-100">
-              <div className="flex justify-between items-center relative px-2">
+            <div className="mt-8 pt-6 border-t border-slate-100 overflow-x-auto custom-scrollbar pb-2">
+              <div className="flex justify-between items-center relative px-2 min-w-[400px]">
                 <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-0.5 bg-slate-100 -z-10 mx-8" />
                 {[
                   { label: 'Applied', status: 'completed' },
@@ -139,7 +146,7 @@ const MyApplications: React.FC = () => {
           </motion.div>
         ))}
 
-        {mockApplications.length === 0 && (
+        {applications.length === 0 && (
           <div className="py-20 text-center card">
             <div className="w-20 h-20 bg-off-white rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
               <Briefcase size={32} />

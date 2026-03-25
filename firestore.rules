@@ -1,0 +1,234 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    // - uid: string (required)
+    // - name: string (required)
+    // - email: string (required)
+    // - role: string (required, enum: HR_ADMIN, DEPT_HEAD, EMPLOYEE, CANDIDATE)
+    // - department: string
+    //
+    // Collection: jobs
+    // - title: string (required)
+    // - department: string (required)
+    // - status: string (required, enum: Open, Closed)
+    //
+    // Collection: applications
+    // - candidateId: string (required)
+    // - jobId: string (required)
+    // - status: string (required)
+    //
+    // Collection: leaves
+    // - employeeId: string (required)
+    // - status: string (required)
+    //
+    // Collection: goals
+    // - employeeId: string (required)
+    //
+    // Collection: payslips
+    // - employeeId: string (required)
+    // - month: string (required)
+    // - status: string (required, enum: Paid, Pending)
+    //
+    // Collection: announcements
+    // - title: string (required)
+    // - date: string (required)
+    // - tag: string (required, enum: Policy, Event, HR)
+    // - createdAt: timestamp (required)
+    //
+    // Collection: settings
+    // - organization: { companyName, registrationNumber, headquartersAddress, departments }
+    // - payroll: { incomeTax, providentFund, professionalTax }
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             getUserData().role == role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+             (request.auth.token.email == "saadanuddinsyed@gmail.com" || 
+              hasRole('HR_ADMIN'));
+    }
+
+    function isDeptHead() {
+      return hasRole('DEPT_HEAD');
+    }
+
+    // Validation Functions
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'email', 'role']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && data.email.size() < 100 &&
+             data.role in ['HR_ADMIN', 'DEPT_HEAD', 'EMPLOYEE', 'CANDIDATE'];
+    }
+
+    function isValidJob(data) {
+      return data.keys().hasAll(['title', 'department', 'location', 'description', 'postedDate']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.department is string && data.department.size() < 100 &&
+             data.status in ['Open', 'Closed'];
+    }
+
+    function isValidApplication(data) {
+      return data.keys().hasAll(['candidateId', 'jobId', 'status', 'appliedDate']) &&
+             data.candidateId is string &&
+             data.jobId is string &&
+             data.status in ['Applied', 'Shortlisted', 'Rejected', 'Hired'];
+    }
+
+    function isValidPayslip(data) {
+      return data.keys().hasAll(['employeeId', 'employeeName', 'month', 'grossSalary', 'netSalary', 'status']) &&
+             data.employeeId is string &&
+             data.month is string &&
+             data.status in ['Paid', 'Pending'];
+    }
+
+    function isValidGoal(data) {
+      return data.keys().hasAll(['employeeId', 'title', 'weight', 'score', 'createdAt']) &&
+             data.employeeId is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
+             data.weight is number && data.weight >= 0 && data.weight <= 100 &&
+             data.score is number && data.score >= 0 && data.score <= 5;
+    }
+
+    function isValidAppraisal(data) {
+      return data.keys().hasAll(['employeeId', 'period', 'status', 'updatedAt', 'timeline']) &&
+             data.employeeId is string &&
+             data.period is string &&
+             data.status in ['Draft', 'Submitted', 'Reviewed', 'Closed'] &&
+             data.timeline is list;
+    }
+
+    function isAppraisalOwner(appraisalId) {
+      return isAuthenticated() && appraisalId.startsWith(request.auth.uid + "_");
+    }
+
+    function isValidAnnouncement(data) {
+      return data.keys().hasAll(['title', 'date', 'tag', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
+             data.date is string && data.date.size() > 0 && data.date.size() < 100 &&
+             data.tag in ['Policy', 'Event', 'HR'];
+    }
+
+    function isValidLeave(data) {
+      return data.keys().hasAll(['employeeId', 'employeeName', 'type', 'startDate', 'endDate', 'days', 'reason', 'status', 'appliedAt']) &&
+             data.employeeId is string &&
+             data.type in ['Sick', 'Casual', 'Unpaid'] &&
+             data.status in ['Pending', 'Approved', 'Rejected'] &&
+             data.days is number && data.days > 0;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['userId', 'title', 'message', 'type', 'read', 'createdAt']) &&
+             data.userId is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 1000 &&
+             data.type in ['ANNOUNCEMENT', 'PAYROLL', 'LEAVE', 'SYSTEM'] &&
+             data.read is bool;
+    }
+
+    // Rules
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    ((isOwner(uid) && (request.resource.data.role == 'CANDIDATE' || request.auth.token.email == "saadanuddinsyed@gmail.com")) || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) &&
+                    ((isOwner(uid) && request.resource.data.role == resource.data.role) || isAdmin());
+    }
+
+    match /jobs/{jobId} {
+      allow read: if true; // Publicly readable for candidates
+      allow write: if (isAdmin() || isDeptHead()) && isValidJob(request.resource.data);
+    }
+
+    match /applications/{appId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.candidateId) || isAdmin() || isDeptHead());
+      allow create: if isAuthenticated() && isValidApplication(request.resource.data) && 
+                    (isOwner(request.resource.data.candidateId) || isAdmin());
+      allow update: if isAuthenticated() && isValidApplication(request.resource.data) && 
+                    (isOwner(resource.data.candidateId) || isAdmin() || isDeptHead());
+    }
+
+    match /leaves/{leaveId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.employeeId) || isAdmin() || isDeptHead());
+      allow create: if isAuthenticated() && isOwner(request.resource.data.employeeId) && isValidLeave(request.resource.data);
+      allow update: if isAuthenticated() && isValidLeave(request.resource.data) && 
+                    (isAdmin() || isDeptHead() || (isOwner(resource.data.employeeId) && resource.data.status == 'Pending')) &&
+                    request.resource.data.employeeId == resource.data.employeeId;
+    }
+
+    match /goals/{goalId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.employeeId) || isAdmin() || isDeptHead());
+      allow create: if isAuthenticated() && isValidGoal(request.resource.data) && 
+                    (isOwner(request.resource.data.employeeId) || isAdmin() || isDeptHead());
+      allow update: if isAuthenticated() && isValidGoal(request.resource.data) && 
+                    (isAdmin() || isDeptHead()) &&
+                    request.resource.data.employeeId == resource.data.employeeId &&
+                    request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAuthenticated() && (isOwner(resource.data.employeeId) || isAdmin() || isDeptHead());
+    }
+
+    match /appraisals/{appraisalId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        isDeptHead() || 
+        isAppraisalOwner(appraisalId)
+      );
+      allow create: if isAuthenticated() && (isAppraisalOwner(appraisalId) || isAdmin() || isDeptHead()) && isValidAppraisal(request.resource.data);
+      allow update: if isAuthenticated() && isValidAppraisal(request.resource.data) &&
+                    (
+                      (isAdmin() || isDeptHead()) || 
+                      (isAppraisalOwner(appraisalId) && (request.resource.data.status == 'Submitted' || request.resource.data.status == resource.data.status))
+                    ) &&
+                    request.resource.data.employeeId == request.auth.uid;
+    }
+
+    match /payslips/{payslipId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.employeeId) || isAdmin());
+      allow create: if isAdmin() && isValidPayslip(request.resource.data);
+      allow update: if isAdmin() && isValidPayslip(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidAnnouncement(request.resource.data);
+      allow update: if isAdmin() && isValidAnnouncement(request.resource.data) &&
+                    request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'ALL');
+      allow create: if isAuthenticated() && (isAdmin() || isDeptHead()) && isValidNotification(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid) && 
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) &&
+                    isValidNotification(request.resource.data);
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

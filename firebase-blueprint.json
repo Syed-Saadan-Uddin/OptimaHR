@@ -1,0 +1,141 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents an employee or candidate in the system",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["HR_ADMIN", "DEPT_HEAD", "EMPLOYEE", "CANDIDATE"] },
+        "department": { "type": "string" },
+        "joiningDate": { "type": "string" },
+        "status": { "type": "string" },
+        "designation": { "type": "string" },
+        "salary": { "type": "number" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Job": {
+      "title": "Job",
+      "description": "A job listing",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "department": { "type": "string" },
+        "location": { "type": "string" },
+        "description": { "type": "string" },
+        "postedDate": { "type": "string" },
+        "status": { "type": "string", "enum": ["Open", "Closed"] }
+      },
+      "required": ["title", "department", "location", "description", "postedDate"]
+    },
+    "Application": {
+      "title": "Application",
+      "description": "A job application from a candidate",
+      "type": "object",
+      "properties": {
+        "candidateId": { "type": "string" },
+        "jobId": { "type": "string" },
+        "status": { "type": "string", "enum": ["Applied", "Shortlisted", "Rejected", "Hired"] },
+        "interviewScore": { "type": "number" },
+        "appliedDate": { "type": "string" }
+      },
+      "required": ["candidateId", "jobId", "status", "appliedDate"]
+    },
+    "LeaveRequest": {
+      "title": "LeaveRequest",
+      "description": "A request for leave by an employee",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string" },
+        "type": { "type": "string", "enum": ["Sick", "Casual", "Unpaid"] },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Rejected"] },
+        "reason": { "type": "string" }
+      },
+      "required": ["employeeId", "type", "startDate", "endDate", "status", "reason"]
+    },
+    "PerformanceGoal": {
+      "title": "PerformanceGoal",
+      "description": "A performance goal for an employee",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string" },
+        "title": { "type": "string" },
+        "weight": { "type": "number" },
+        "score": { "type": "number" }
+      },
+      "required": ["employeeId", "title", "weight"]
+    },
+    "Payslip": {
+      "title": "Payslip",
+      "description": "A monthly payslip for an employee",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "month": { "type": "string" },
+        "grossSalary": { "type": "number" },
+        "netSalary": { "type": "number" },
+        "status": { "type": "string", "enum": ["Paid", "Pending"] },
+        "processedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["employeeId", "employeeName", "month", "grossSalary", "netSalary", "status"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "A company-wide announcement",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "tag": { "type": "string", "enum": ["Policy", "Event", "HR"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "date", "tag", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID of the user who should receive the notification, or 'ALL' for global notifications" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["ANNOUNCEMENT", "PAYROLL", "LEAVE", "SYSTEM"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "message", "type", "read", "createdAt"]
+    },
+    "Appraisal": {
+      "title": "Appraisal",
+      "description": "A performance appraisal for an employee",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string" },
+        "period": { "type": "string" },
+        "status": { "type": "string", "enum": ["Draft", "Submitted", "Reviewed", "Closed"] },
+        "managerRemarks": { "type": "string" },
+        "overallScore": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "timeline": { "type": "array" }
+      },
+      "required": ["employeeId", "period", "status", "updatedAt", "timeline"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "User profiles" },
+    "/jobs/{jobId}": { "schema": "Job", "description": "Job listings" },
+    "/applications/{appId}": { "schema": "Application", "description": "Candidate applications" },
+    "/leaves/{leaveId}": { "schema": "LeaveRequest", "description": "Leave requests" },
+    "/goals/{goalId}": { "schema": "PerformanceGoal", "description": "Performance goals" },
+    "/payslips/{payslipId}": { "schema": "Payslip", "description": "Employee payslips" },
+    "/announcements/{announcementId}": { "schema": "Announcement", "description": "Company announcements" },
+    "/notifications/{notificationId}": { "schema": "Notification", "description": "User notifications" },
+    "/appraisals/{appraisalId}": { "schema": "Appraisal", "description": "Performance appraisals" }
+  }
+}

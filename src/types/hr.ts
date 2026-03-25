@@ -14,6 +14,7 @@ export interface Candidate {
   name: string;
   email: string;
   appliedJobId: string;
+  jobTitle?: string;
   status: 'Applied' | 'Shortlisted' | 'Rejected' | 'Hired';
   interviewScore?: number;
   appliedDate: string;
@@ -27,6 +28,7 @@ export interface Employee {
   email: string;
   joiningDate: string;
   status: 'Active' | 'Inactive';
+  salary?: number;
 }
 
 export interface LeaveBalance {
@@ -38,29 +40,57 @@ export interface LeaveBalance {
 export interface LeaveRequest {
   id: string;
   employeeId: string;
+  employeeName?: string;
   type: 'Sick' | 'Casual' | 'Unpaid';
   startDate: string;
   endDate: string;
+  days: number;
   status: 'Pending' | 'Approved' | 'Rejected';
   reason: string;
+  appliedAt?: any;
 }
 
 export interface PerformanceGoal {
   id: string;
+  employeeId: string;
   title: string;
   weight: number;
   score?: number;
+  createdAt: any;
+}
+
+export interface Appraisal {
+  id: string;
+  employeeId: string;
+  period: string;
+  managerRemarks?: string;
+  overallScore?: number;
+  status: 'Draft' | 'Submitted' | 'Reviewed' | 'Closed';
+  updatedAt: any;
+  timeline: {
+    label: string;
+    date: string;
+    status: 'completed' | 'pending';
+  }[];
 }
 
 export interface Payslip {
   id: string;
+  employeeId: string;
+  employeeName: string;
   month: string;
-  year: number;
-  gross: number;
-  basic: number;
-  hra: number;
-  allowances: number;
-  deductions: number;
-  tax: number;
-  net: number;
+  grossSalary: number;
+  breakdown: {
+    basic: number;
+    hra: number;
+    allowances: number;
+  };
+  deductions: {
+    tax: number;
+    providentFund: number;
+    unpaidLeave?: number;
+  };
+  netSalary: number;
+  status: 'Paid' | 'Pending';
+  processedAt: any;
 }
