@@ -11,6 +11,7 @@ interface HeaderProps {
   role: UserRole;
   collapsed: boolean;
   setMobileMenuOpen?: (v: boolean) => void;
+  setActiveView: (v: string) => void;
 }
 
 interface SearchResult {
@@ -31,7 +32,7 @@ interface Notification {
   createdAt: any;
 }
 
-const Header: React.FC<HeaderProps> = ({ role, collapsed, setMobileMenuOpen }) => {
+const Header: React.FC<HeaderProps> = ({ role, collapsed, setMobileMenuOpen, setActiveView }) => {
   const { user, userProfile } = useFirebase();
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -434,7 +435,10 @@ const Header: React.FC<HeaderProps> = ({ role, collapsed, setMobileMenuOpen }) =
         
         <div className="h-8 w-px bg-slate-200 hidden sm:block" />
         
-        <button className="flex items-center gap-3 pl-2 pr-1 py-1 hover:bg-off-white rounded-full transition-all">
+        <button 
+          onClick={() => setActiveView('settings')}
+          className="flex items-center gap-3 pl-2 pr-1 py-1 hover:bg-off-white rounded-full transition-all"
+        >
           <div className="text-right hidden sm:block">
             <p className="text-xs font-bold text-navy">
               {userProfile?.name || user?.displayName || 'Guest User'}
@@ -445,7 +449,7 @@ const Header: React.FC<HeaderProps> = ({ role, collapsed, setMobileMenuOpen }) =
           </div>
           <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center overflow-hidden border border-slate-200">
             <img 
-              src={user?.photoURL || `https://picsum.photos/seed/${role}/100/100`} 
+              src={userProfile?.photoURL || user?.photoURL || `https://picsum.photos/seed/${role}/100/100`} 
               alt="User" 
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"

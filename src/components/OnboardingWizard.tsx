@@ -74,6 +74,7 @@ const OnboardingWizard: React.FC<{ onComplete?: () => void }> = ({ onComplete })
         name: `${formData.firstName} ${formData.lastName}`,
         dob: formData.dob,
         emergencyContact: formData.emergencyContact,
+        idProof: formData.idProof,
         onboardingCompleted: true,
         status: 'Active'
       });

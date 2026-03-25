@@ -15,8 +15,11 @@ import { db } from '../firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs, limit, orderBy } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../firestoreUtils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { useFirebase } from './FirebaseProvider';
+import LatestPayslipCard from './LatestPayslipCard';
 
 const HRDashboard: React.FC<{ onNavigate?: (tab: string, data?: any) => void }> = ({ onNavigate }) => {
+  const { user } = useFirebase();
   const [stats, setStats] = useState({
     totalEmployees: 0,
     openPositions: 0,
@@ -334,6 +337,25 @@ const HRDashboard: React.FC<{ onNavigate?: (tab: string, data?: any) => void }> 
           </div>
         </div>
       </div>
+
+      {user && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-1">
+            <LatestPayslipCard userId={user.uid} onNavigate={onNavigate} />
+          </div>
+          <div className="md:col-span-2 card p-6 flex items-center justify-center bg-slate-50/50 border-dashed">
+            <div className="text-center space-y-2">
+              <p className="text-sm font-bold text-navy">Need to process payroll for others?</p>
+              <button 
+                onClick={() => onNavigate?.('payroll')}
+                className="btn-primary text-xs px-6"
+              >
+                Go to Payroll Management
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

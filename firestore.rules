@@ -10,6 +10,10 @@ service cloud.firestore {
     // - email: string (required)
     // - role: string (required, enum: HR_ADMIN, DEPT_HEAD, EMPLOYEE, CANDIDATE)
     // - department: string
+    // - dob: string (optional)
+    // - emergencyContact: map (optional)
+    // - idProof: map (optional)
+    // - onboardingCompleted: bool (optional)
     //
     // Collection: jobs
     // - title: string (required)
@@ -19,8 +23,17 @@ service cloud.firestore {
     // Collection: applications
     // - candidateId: string (required)
     // - jobId: string (required)
-    // - status: string (required)
-    //
+    // - jobTitle: string (required)
+    // - status: string (required, enum: Applied, Shortlisted, Interviewing, Interviewed, Rejected, Hired)
+    // - interviewScore: number (optional)
+    // - interviewDate: string (optional)
+    // - scoreRemarks: string (optional)
+    // - appliedDate: string (required)
+    // - name: string (required)
+    // - email: string (required)
+    // - linkedin: string (optional)
+    // - coverLetter: string (optional)
+    // - resume: map (optional)
     // Collection: leaves
     // - employeeId: string (required)
     // - status: string (required)
@@ -78,7 +91,11 @@ service cloud.firestore {
       return data.keys().hasAll(['name', 'email', 'role']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.email is string && data.email.size() < 100 &&
-             data.role in ['HR_ADMIN', 'DEPT_HEAD', 'EMPLOYEE', 'CANDIDATE'];
+             data.role in ['HR_ADMIN', 'DEPT_HEAD', 'EMPLOYEE', 'CANDIDATE'] &&
+             (!('dob' in data) || data.dob is string) &&
+             (!('emergencyContact' in data) || data.emergencyContact is map) &&
+             (!('idProof' in data) || (data.idProof is map || data.idProof == null)) &&
+             (!('onboardingCompleted' in data) || data.onboardingCompleted is bool);
     }
 
     function isValidJob(data) {
@@ -89,10 +106,19 @@ service cloud.firestore {
     }
 
     function isValidApplication(data) {
-      return data.keys().hasAll(['candidateId', 'jobId', 'status', 'appliedDate']) &&
+      return data.keys().hasAll(['candidateId', 'jobId', 'jobTitle', 'status', 'appliedDate', 'name', 'email']) &&
              data.candidateId is string &&
              data.jobId is string &&
-             data.status in ['Applied', 'Shortlisted', 'Rejected', 'Hired'];
+             data.jobTitle is string &&
+             data.status in ['Applied', 'Shortlisted', 'Interviewing', 'Interviewed', 'Rejected', 'Hired'] &&
+             data.name is string && data.name.size() > 0 &&
+             data.email is string &&
+             (!('interviewScore' in data) || (data.interviewScore is number && data.interviewScore >= 0 && data.interviewScore <= 5)) &&
+             (!('interviewDate' in data) || data.interviewDate is string) &&
+             (!('scoreRemarks' in data) || data.scoreRemarks is string) &&
+             (!('linkedin' in data) || data.linkedin is string) &&
+             (!('coverLetter' in data) || data.coverLetter is string) &&
+             (!('resume' in data) || data.resume is map);
     }
 
     function isValidPayslip(data) {
@@ -142,7 +168,7 @@ service cloud.firestore {
              data.userId is string &&
              data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
              data.message is string && data.message.size() > 0 && data.message.size() < 1000 &&
-             data.type in ['ANNOUNCEMENT', 'PAYROLL', 'LEAVE', 'SYSTEM'] &&
+             data.type in ['ANNOUNCEMENT', 'PAYROLL', 'LEAVE', 'SYSTEM', 'INTERVIEW'] &&
              data.read is bool;
     }
 

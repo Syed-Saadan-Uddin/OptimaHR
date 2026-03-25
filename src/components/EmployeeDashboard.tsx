@@ -16,34 +16,18 @@ import { motion } from 'motion/react';
 import { useFirebase } from './FirebaseProvider';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { Payslip, PerformanceGoal } from '../types/hr';
+import { PerformanceGoal } from '../types/hr';
 import { handleFirestoreError, OperationType } from '../firestoreUtils';
+import LatestPayslipCard from './LatestPayslipCard';
 
 const EmployeeDashboard: React.FC<{ onNavigate?: (tab: string, data?: any) => void }> = ({ onNavigate }) => {
   const { user, userProfile } = useFirebase();
-  const [latestPayslip, setLatestPayslip] = useState<Payslip | null>(null);
   const [performanceScore, setPerformanceScore] = useState(0);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
-
-    // Fetch latest payslip
-    const payslipQuery = query(
-      collection(db, 'payslips'),
-      where('employeeId', '==', user.uid),
-      orderBy('processedAt', 'desc'),
-      limit(1)
-    );
-
-    const unsubscribePayslip = onSnapshot(payslipQuery, (snapshot) => {
-      if (!snapshot.empty) {
-        setLatestPayslip({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Payslip);
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'payslips');
-    });
 
     // Fetch performance goals for score calculation
     const goalsQuery = query(
@@ -82,7 +66,6 @@ const EmployeeDashboard: React.FC<{ onNavigate?: (tab: string, data?: any) => vo
     });
 
     return () => {
-      unsubscribePayslip();
       unsubscribeGoals();
       unsubscribeAnnouncements();
     };
@@ -185,33 +168,7 @@ const EmployeeDashboard: React.FC<{ onNavigate?: (tab: string, data?: any) => vo
           <p className="text-center text-xs text-slate-500 mt-2">Cycle: Q1 2026 (In Progress)</p>
         </div>
 
-        <div className="card p-6">
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="font-bold text-navy">Latest Payslip</h3>
-            <CreditCard size={20} className="text-slate-blue" />
-          </div>
-          {latestPayslip ? (
-            <div className="bg-off-white p-4 rounded-xl border border-dashed border-slate-300">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs text-slate-500">{latestPayslip.month}</span>
-                <span className="badge badge-success">Paid</span>
-              </div>
-              <p className="text-xl font-bold text-navy">${latestPayslip.netSalary.toLocaleString()}</p>
-              <p className="text-[10px] text-slate-400 mt-1">Net Pay after deductions</p>
-              <button 
-                onClick={() => onNavigate?.('payslip', latestPayslip)}
-                className="w-full mt-4 py-2 text-xs font-bold text-slate-blue hover:bg-white rounded-lg border border-slate-200 transition-all"
-              >
-                View Details
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-32 text-slate-400">
-              <CreditCard size={24} className="mb-2 opacity-20" />
-              <p className="text-xs">No payslips found</p>
-            </div>
-          )}
-        </div>
+        {user && <LatestPayslipCard userId={user.uid} onNavigate={onNavigate} />}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

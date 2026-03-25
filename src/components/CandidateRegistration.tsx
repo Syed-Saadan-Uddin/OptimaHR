@@ -48,7 +48,8 @@ const CandidateRegistration: React.FC<{ job: JobListing | null, onComplete: () =
         name: formData.name,
         email: formData.email,
         role: 'CANDIDATE',
-        status: 'Active'
+        status: 'Active',
+        resume: formData.resume // Save resume to user profile as well
       }, { merge: true });
 
       // 2. Create application

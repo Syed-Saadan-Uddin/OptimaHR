@@ -38,19 +38,26 @@ function AppContent() {
   const [authError, setAuthError] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
-  // Force onboarding for new employees
-  React.useEffect(() => {
-    if (user && role === 'EMPLOYEE' && userProfile && !userProfile.onboardingCompleted && activeView !== 'onboarding') {
-      setActiveView('onboarding');
-    }
-  }, [user, role, userProfile, activeView]);
+  const hasInitializedView = React.useRef(false);
 
-  // Redirect CANDIDATE away from dashboard if they land there
+  // Set initial view based on role after login
   React.useEffect(() => {
-    if (user && role === 'CANDIDATE' && activeView === 'dashboard') {
-      setActiveView('job-portal');
+    if (user && !loading && !hasInitializedView.current) {
+      if (role === 'CANDIDATE') {
+        setActiveView('job-portal');
+      } else if (role === 'EMPLOYEE' && userProfile && !userProfile.onboardingCompleted) {
+        setActiveView('onboarding');
+      } else {
+        setActiveView('dashboard');
+      }
+      hasInitializedView.current = true;
     }
-  }, [user, role, activeView]);
+    
+    // Reset initialization flag when user logs out
+    if (!user) {
+      hasInitializedView.current = false;
+    }
+  }, [user, loading, role, userProfile]);
 
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
@@ -253,7 +260,7 @@ function AppContent() {
       />
       
       <div className={`flex-1 flex flex-col transition-all duration-300 print:ml-0 ${collapsed ? 'md:ml-20' : 'md:ml-64'} ml-0`}>
-        <Header role={role} collapsed={collapsed} setMobileMenuOpen={setMobileMenuOpen} />
+        <Header role={role} collapsed={collapsed} setMobileMenuOpen={setMobileMenuOpen} setActiveView={handleNavigate} />
         
         <main className="flex-1 mt-16 p-4 md:p-8 overflow-y-auto print:mt-0 print:p-0">
           <AnimatePresence mode="wait">

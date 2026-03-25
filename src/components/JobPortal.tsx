@@ -15,17 +15,34 @@ const JobPortal: React.FC<JobPortalProps> = ({ role, onApply }) => {
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [selectedDept, setSelectedDept] = useState('All Departments');
+  const [selectedLocation, setSelectedLocation] = useState('All Locations');
+  const [selectedTimeframe, setSelectedTimeframe] = useState('Any Time');
+  const [showFilters, setShowFilters] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [newJob, setNewJob] = useState({
     title: '',
-    department: 'Engineering',
+    department: '',
     location: 'Remote',
     description: ''
   });
 
   useEffect(() => {
+    // Fetch departments from settings
+    const unsubscribeDepts = onSnapshot(doc(db, 'settings', 'organization'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        const depts = data.departments || [];
+        setDepartments(depts);
+        if (depts.length > 0 && !newJob.department) {
+          setNewJob(prev => ({ ...prev, department: depts[0] }));
+        }
+      }
+    });
+
     const q = query(collection(db, 'jobs'), orderBy('postedDate', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeJobs = onSnapshot(q, (snapshot) => {
       const jobsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -36,7 +53,10 @@ const JobPortal: React.FC<JobPortalProps> = ({ role, onApply }) => {
       handleFirestoreError(error, OperationType.LIST, 'jobs');
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeDepts();
+      unsubscribeJobs();
+    };
   }, []);
 
   const canManageJobs = role === 'HR_ADMIN' || role === 'DEPT_HEAD';
@@ -50,7 +70,12 @@ const JobPortal: React.FC<JobPortalProps> = ({ role, onApply }) => {
         postedDate: new Date().toISOString()
       });
       setShowPostModal(false);
-      setNewJob({ title: '', department: 'Engineering', location: 'Remote', description: '' });
+      setNewJob({ 
+        title: '', 
+        department: departments.length > 0 ? departments[0] : '', 
+        location: 'Remote', 
+        description: '' 
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'jobs');
     }
@@ -64,10 +89,25 @@ const JobPortal: React.FC<JobPortalProps> = ({ role, onApply }) => {
     }
   };
 
-  const filteredJobs = jobs.filter(job => 
-    job.title.toLowerCase().includes(search.toLowerCase()) ||
-    job.department.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredJobs = jobs.filter(job => {
+    const matchesSearch = job.title.toLowerCase().includes(search.toLowerCase()) ||
+                         job.department.toLowerCase().includes(search.toLowerCase());
+    const matchesDept = selectedDept === 'All Departments' || job.department === selectedDept;
+    const matchesLocation = selectedLocation === 'All Locations' || job.location === selectedLocation;
+    
+    let matchesTime = true;
+    if (selectedTimeframe !== 'Any Time') {
+      const postedDate = new Date(job.postedDate);
+      const now = new Date();
+      const diffDays = (now.getTime() - postedDate.getTime()) / (1000 * 3600 * 24);
+      if (selectedTimeframe === 'Last 7 Days') matchesTime = diffDays <= 7;
+      else if (selectedTimeframe === 'Last 30 Days') matchesTime = diffDays <= 30;
+    }
+
+    return matchesSearch && matchesDept && matchesLocation && matchesTime;
+  });
+
+  const uniqueLocations = Array.from(new Set(jobs.map(j => j.location))).sort();
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -102,18 +142,77 @@ const JobPortal: React.FC<JobPortalProps> = ({ role, onApply }) => {
           />
         </div>
         <div className="flex gap-2 sm:gap-4">
-          <select className="input-field flex-1 sm:w-40">
+          <select 
+            className="input-field flex-1 sm:w-48"
+            value={selectedDept}
+            onChange={(e) => setSelectedDept(e.target.value)}
+          >
             <option>All Departments</option>
-            <option>Engineering</option>
-            <option>Product</option>
-            <option>Human Resources</option>
+            {departments.map(dept => (
+              <option key={dept} value={dept}>{dept}</option>
+            ))}
           </select>
-          <button className="btn-secondary flex items-center gap-2 px-4">
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            className={`btn-secondary flex items-center gap-2 px-4 transition-all ${showFilters ? 'bg-navy text-white border-navy' : ''}`}
+          >
             <Filter size={18} />
-            <span className="hidden sm:inline">Filter</span>
+            <span className="hidden sm:inline">{showFilters ? 'Hide Filters' : 'Filters'}</span>
           </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="card p-6 bg-slate-50/50 border-dashed grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Location</label>
+                <select 
+                  className="input-field bg-white"
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                >
+                  <option>All Locations</option>
+                  {uniqueLocations.map(loc => (
+                    <option key={loc} value={loc}>{loc}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Time Posted</label>
+                <select 
+                  className="input-field bg-white"
+                  value={selectedTimeframe}
+                  onChange={(e) => setSelectedTimeframe(e.target.value)}
+                >
+                  <option>Any Time</option>
+                  <option>Last 7 Days</option>
+                  <option>Last 30 Days</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button 
+                  onClick={() => {
+                    setSelectedDept('All Departments');
+                    setSelectedLocation('All Locations');
+                    setSelectedTimeframe('Any Time');
+                    setSearch('');
+                  }}
+                  className="text-xs font-bold text-muted-red hover:underline pb-3"
+                >
+                  Reset All Filters
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="grid grid-cols-1 gap-4">
         {loading ? (
@@ -210,12 +309,15 @@ const JobPortal: React.FC<JobPortalProps> = ({ role, onApply }) => {
                       className="input-field"
                       value={newJob.department}
                       onChange={(e) => setNewJob({...newJob, department: e.target.value})}
+                      required
                     >
-                      <option>Engineering</option>
-                      <option>Product</option>
-                      <option>Design</option>
-                      <option>Human Resources</option>
-                      <option>Marketing</option>
+                      {departments.length > 0 ? (
+                        departments.map(dept => (
+                          <option key={dept} value={dept}>{dept}</option>
+                        ))
+                      ) : (
+                        <option value="">No departments set</option>
+                      )}
                     </select>
                   </div>
                   <div className="space-y-1.5">

@@ -11,13 +11,22 @@ export interface JobListing {
 
 export interface Candidate {
   id: string;
+  candidateId: string;
   name: string;
   email: string;
   appliedJobId: string;
   jobTitle?: string;
-  status: 'Applied' | 'Shortlisted' | 'Rejected' | 'Hired';
+  status: 'Applied' | 'Shortlisted' | 'Interviewing' | 'Interviewed' | 'Rejected' | 'Hired';
   interviewScore?: number;
+  interviewDate?: string;
+  scoreRemarks?: string;
   appliedDate: string;
+  resume?: {
+    name: string;
+    size: number;
+    type: string;
+    base64: string;
+  };
 }
 
 export interface Employee {
@@ -29,6 +38,18 @@ export interface Employee {
   joiningDate: string;
   status: 'Active' | 'Inactive';
   salary?: number;
+  dob?: string;
+  emergencyContact?: {
+    name: string;
+    relationship: string;
+    phone: string;
+  };
+  idProof?: {
+    name: string;
+    size: number;
+    type: string;
+    base64: string;
+  };
 }
 
 export interface LeaveBalance {

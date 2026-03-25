@@ -16,7 +16,9 @@ import {
   CheckCircle2,
   Database,
   AlertCircle,
-  XCircle
+  XCircle,
+  Calendar,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserRole } from '../types/hr';
@@ -45,9 +47,17 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
     email: '',
     phone: '',
     language: 'English (US)',
-    photoURL: ''
+    photoURL: '',
+    dob: '',
+    emergencyContact: {
+      name: '',
+      relationship: 'Spouse',
+      phone: ''
+    },
+    idProof: null as { name: string, size: number, type: string, base64: string } | null
   });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const idProofInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -85,6 +95,26 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
       reader.readAsDataURL(file);
     }
   };
+
+  const handleIdProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileForm({
+          ...profileForm,
+          idProof: {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            base64: reader.result as string
+          }
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const [departments, setDepartments] = useState<string[]>([]);
   const [newDeptName, setNewDeptName] = useState('');
 
@@ -119,7 +149,14 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
         email: userProfile.email || '',
         phone: userProfile.phone || '',
         language: userProfile.language || 'English (US)',
-        photoURL: userProfile.photoURL || `https://picsum.photos/seed/${role}/200/200`
+        photoURL: userProfile.photoURL || `https://picsum.photos/seed/${role}/200/200`,
+        dob: userProfile.dob || '',
+        emergencyContact: userProfile.emergencyContact || {
+          name: '',
+          relationship: 'Spouse',
+          phone: ''
+        },
+        idProof: userProfile.idProof || null
       });
       if (userProfile.notifications) {
         setNotificationPrefs(userProfile.notifications);
@@ -411,6 +448,115 @@ const SettingsView: React.FC<SettingsViewProps> = ({ role }) => {
                             <option>French</option>
                             <option>German</option>
                           </select>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date of Birth</label>
+                        <div className="relative">
+                          <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                          <input 
+                            type="date" 
+                            className="input-field !pl-12" 
+                            value={profileForm.dob}
+                            onChange={(e) => setProfileForm({ ...profileForm, dob: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-8 border-t border-slate-100 space-y-6">
+                      <h3 className="text-lg font-bold text-navy">Emergency Contact</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contact Name</label>
+                          <input 
+                            type="text" 
+                            className="input-field" 
+                            placeholder="Jane Doe" 
+                            value={profileForm.emergencyContact.name}
+                            onChange={(e) => setProfileForm({
+                              ...profileForm, 
+                              emergencyContact: {...profileForm.emergencyContact, name: e.target.value}
+                            })}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Relationship</label>
+                          <select 
+                            className="input-field"
+                            value={profileForm.emergencyContact.relationship}
+                            onChange={(e) => setProfileForm({
+                              ...profileForm, 
+                              emergencyContact: {...profileForm.emergencyContact, relationship: e.target.value}
+                            })}
+                          >
+                            <option>Spouse</option>
+                            <option>Parent</option>
+                            <option>Sibling</option>
+                            <option>Friend</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Phone Number</label>
+                          <input 
+                            type="tel" 
+                            className="input-field" 
+                            placeholder="+1 (555) 000-0000" 
+                            value={profileForm.emergencyContact.phone}
+                            onChange={(e) => setProfileForm({
+                              ...profileForm, 
+                              emergencyContact: {...profileForm.emergencyContact, phone: e.target.value}
+                            })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-8 border-t border-slate-100 space-y-6">
+                      <h3 className="text-lg font-bold text-navy">Identity Verification</h3>
+                      <div className="flex items-center gap-6">
+                        <input 
+                          type="file" 
+                          ref={idProofInputRef} 
+                          className="hidden" 
+                          accept="image/*,.pdf"
+                          onChange={handleIdProofChange}
+                        />
+                        <div className="w-16 h-16 bg-off-white rounded-xl flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 overflow-hidden">
+                          {profileForm.idProof && profileForm.idProof.type.startsWith('image/') ? (
+                            <img src={profileForm.idProof.base64} alt="ID Proof" className="w-full h-full object-cover" />
+                          ) : (
+                            <FileText size={24} />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-navy">
+                            {profileForm.idProof ? profileForm.idProof.name : 'No ID Proof uploaded'}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {profileForm.idProof ? `${(profileForm.idProof.size / 1024).toFixed(0)} KB` : "Passport, Driver's License, or National ID"}
+                          </p>
+                          <div className="flex gap-3 mt-2">
+                            <button 
+                              onClick={() => idProofInputRef.current?.click()}
+                              className="text-[10px] font-bold text-emerald hover:underline"
+                            >
+                              {profileForm.idProof ? 'Update Document' : 'Upload Document'}
+                            </button>
+                            {profileForm.idProof && (
+                              <button 
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = profileForm.idProof!.base64;
+                                  link.download = profileForm.idProof!.name;
+                                  link.click();
+                                }}
+                                className="text-[10px] font-bold text-navy hover:underline"
+                              >
+                                Download Current
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

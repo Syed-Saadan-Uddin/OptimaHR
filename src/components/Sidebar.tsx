@@ -35,13 +35,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   mobileMenuOpen,
   setMobileMenuOpen
 }) => {
-  const { logout } = useFirebase();
+  const { logout, userProfile } = useFirebase();
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['HR_ADMIN', 'DEPT_HEAD', 'EMPLOYEE'] },
     { id: 'job-portal', label: 'Job Portal', icon: Briefcase, roles: ['CANDIDATE', 'HR_ADMIN', 'DEPT_HEAD'] },
     { id: 'applications', label: 'My Applications', icon: CreditCard, roles: ['CANDIDATE'] },
     { id: 'recruitment', label: 'Recruitment', icon: UserPlus, roles: ['HR_ADMIN', 'DEPT_HEAD'] },
-    { id: 'onboarding', label: 'Onboarding', icon: UserPlus, roles: ['HR_ADMIN', 'EMPLOYEE'] },
+    { id: 'onboarding', label: 'Onboarding', icon: UserPlus, roles: ['HR_ADMIN', 'EMPLOYEE'], hideIfOnboarded: true },
     { id: 'leave', label: 'Leave Management', icon: Calendar, roles: ['HR_ADMIN', 'DEPT_HEAD', 'EMPLOYEE'] },
     { id: 'performance', label: 'Performance', icon: BarChart2, roles: ['HR_ADMIN', 'DEPT_HEAD', 'EMPLOYEE'] },
     { id: 'payroll', label: 'Payroll', icon: CreditCard, roles: ['HR_ADMIN'] },
@@ -49,7 +49,12 @@ const Sidebar: React.FC<SidebarProps> = ({
     { id: 'settings', label: 'Settings', icon: Settings, roles: ['HR_ADMIN', 'DEPT_HEAD', 'EMPLOYEE', 'CANDIDATE'] },
   ];
 
-  const filteredItems = menuItems.filter(item => item.roles.includes(role));
+  const filteredItems = menuItems.filter(item => {
+    const hasRole = item.roles.includes(role);
+    if (!hasRole) return false;
+    if ((item as any).hideIfOnboarded && userProfile?.onboardingCompleted) return false;
+    return true;
+  });
 
   const handleSignOut = async () => {
     try {

@@ -10,7 +10,9 @@ import {
   XCircle,
   Clock,
   UserPlus,
-  ArrowUpRight
+  ArrowUpRight,
+  Download,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Employee, LeaveRequest, UserRole } from '../types/hr';
@@ -46,6 +48,7 @@ const EmployeesView: React.FC<EmployeesViewProps> = ({ role }) => {
   const [pendingLeaves, setPendingLeaves] = useState<(LeaveRequest & { employeeName: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   const isAdmin = role === 'HR_ADMIN';
 
@@ -291,7 +294,7 @@ const EmployeesView: React.FC<EmployeesViewProps> = ({ role }) => {
                         <td className="px-6 py-4 text-xs text-slate-500">{emp.joiningDate}</td>
                         {isAdmin && (
                           <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity relative">
                               <button 
                                 onClick={() => handlePromote(emp)}
                                 className="p-1.5 text-slate-400 hover:text-emerald hover:bg-white rounded-lg border border-transparent hover:border-slate-200" title="Promote"
@@ -304,9 +307,73 @@ const EmployeesView: React.FC<EmployeesViewProps> = ({ role }) => {
                               >
                                 <DollarSign size={16} />
                               </button>
-                              <button className="p-1.5 text-slate-400 hover:text-navy hover:bg-white rounded-lg border border-transparent hover:border-slate-200">
-                                <MoreHorizontal size={16} />
-                              </button>
+                              
+                              <div className="relative">
+                                <button 
+                                  onClick={() => setActiveDropdown(activeDropdown === emp.id ? null : emp.id)}
+                                  className={`p-1.5 rounded-lg border transition-all ${
+                                    activeDropdown === emp.id ? 'bg-navy text-white border-navy' : 'text-slate-400 hover:text-navy hover:bg-white border-transparent hover:border-slate-200'
+                                  }`}
+                                >
+                                  <MoreHorizontal size={16} />
+                                </button>
+                                
+                                <AnimatePresence>
+                                  {activeDropdown === emp.id && (
+                                    <>
+                                      <div 
+                                        className="fixed inset-0 z-[60]" 
+                                        onClick={() => setActiveDropdown(null)}
+                                      />
+                                      <motion.div 
+                                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                        className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 p-2 z-[70] text-left"
+                                      >
+                                        <button 
+                                          onClick={() => {
+                                            const resume = (emp as any).resume;
+                                            if (resume) {
+                                              const link = document.createElement('a');
+                                              link.href = resume.base64;
+                                              link.download = resume.name;
+                                              link.click();
+                                            } else {
+                                              alert('No resume found for this employee.');
+                                            }
+                                            setActiveDropdown(null);
+                                          }}
+                                          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-off-white rounded-lg transition-colors"
+                                        >
+                                          <Download size={14} />
+                                          Download Resume
+                                        </button>
+                                        <button 
+                                          onClick={() => {
+                                            handlePromote(emp);
+                                            setActiveDropdown(null);
+                                          }}
+                                          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-off-white rounded-lg transition-colors"
+                                        >
+                                          <ArrowUpRight size={14} />
+                                          Promote Employee
+                                        </button>
+                                        <button 
+                                          onClick={() => {
+                                            handleEditSalary(emp);
+                                            setActiveDropdown(null);
+                                          }}
+                                          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-off-white rounded-lg transition-colors"
+                                        >
+                                          <DollarSign size={14} />
+                                          Adjust Salary
+                                        </button>
+                                      </motion.div>
+                                    </>
+                                  )}
+                                </AnimatePresence>
+                              </div>
                             </div>
                           </td>
                         )}
@@ -356,17 +423,34 @@ const EmployeesView: React.FC<EmployeesViewProps> = ({ role }) => {
                     </div>
 
                     {isAdmin && (
-                      <div className="flex gap-2 pt-2">
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        <button 
+                          onClick={() => {
+                            const resume = (emp as any).resume;
+                            if (resume) {
+                              const link = document.createElement('a');
+                              link.href = resume.base64;
+                              link.download = resume.name;
+                              link.click();
+                            } else {
+                              alert('No resume found for this employee.');
+                            }
+                          }}
+                          className="flex-1 min-w-[100px] py-2 bg-off-white text-slate-600 rounded-lg flex items-center justify-center gap-2 text-xs font-bold"
+                        >
+                          <Download size={14} />
+                          <span>Resume</span>
+                        </button>
                         <button 
                           onClick={() => handlePromote(emp)}
-                          className="flex-1 py-2 bg-off-white text-slate-600 rounded-lg flex items-center justify-center gap-2 text-xs font-bold"
+                          className="flex-1 min-w-[100px] py-2 bg-off-white text-slate-600 rounded-lg flex items-center justify-center gap-2 text-xs font-bold"
                         >
                           <ArrowUpRight size={14} />
                           <span>Promote</span>
                         </button>
                         <button 
                           onClick={() => handleEditSalary(emp)}
-                          className="flex-1 py-2 bg-off-white text-slate-600 rounded-lg flex items-center justify-center gap-2 text-xs font-bold"
+                          className="flex-1 min-w-[100px] py-2 bg-off-white text-slate-600 rounded-lg flex items-center justify-center gap-2 text-xs font-bold"
                         >
                           <DollarSign size={14} />
                           <span>Salary</span>

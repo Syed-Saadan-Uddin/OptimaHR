@@ -8,11 +8,17 @@ import {
   Eye,
   Star,
   Download,
-  Search
+  Search,
+  Calendar,
+  FileText,
+  X,
+  Send,
+  Trophy
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Candidate } from '../types/hr';
 import { db } from '../firebase';
-import { collection, onSnapshot, updateDoc, doc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, updateDoc, doc, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../firestoreUtils';
 
 const RecruitmentView: React.FC<{ role?: string }> = ({ role }) => {
@@ -20,6 +26,18 @@ const RecruitmentView: React.FC<{ role?: string }> = ({ role }) => {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  
+  // Modals
+  const [schedulingInterview, setSchedulingInterview] = useState<Candidate | null>(null);
+  const [addingScore, setAddingScore] = useState<Candidate | null>(null);
+  
+  // Form states
+  const [interviewDate, setInterviewDate] = useState('');
+  const [interviewTime, setInterviewTime] = useState('');
+  const [score, setScore] = useState('');
+  const [scoreRemarks, setScoreRemarks] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!role || (role !== 'HR_ADMIN' && role !== 'DEPT_HEAD')) {
@@ -45,8 +63,62 @@ const RecruitmentView: React.FC<{ role?: string }> = ({ role }) => {
   const updateStatus = async (id: string, status: Candidate['status']) => {
     try {
       await updateDoc(doc(db, 'applications', id), { status });
+      setActiveDropdown(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `applications/${id}`);
+    }
+  };
+
+  const handleScheduleInterview = async () => {
+    if (!schedulingInterview || !interviewDate || !interviewTime) return;
+    setIsSubmitting(true);
+    try {
+      const interviewDateTime = `${interviewDate}T${interviewTime}`;
+      
+      // Update application status
+      await updateDoc(doc(db, 'applications', schedulingInterview.id), {
+        status: 'Interviewing',
+        interviewDate: interviewDateTime
+      });
+
+      // Send notification to candidate
+      await addDoc(collection(db, 'notifications'), {
+        userId: schedulingInterview.candidateId,
+        title: 'Interview Scheduled',
+        message: `Your interview for ${schedulingInterview.jobTitle} has been scheduled for ${new Date(interviewDateTime).toLocaleString()}.`,
+        type: 'INTERVIEW',
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
+      setSchedulingInterview(null);
+      setInterviewDate('');
+      setInterviewTime('');
+      setActiveDropdown(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'notifications');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddScore = async () => {
+    if (!addingScore || !score) return;
+    setIsSubmitting(true);
+    try {
+      await updateDoc(doc(db, 'applications', addingScore.id), {
+        interviewScore: Number(score),
+        scoreRemarks: scoreRemarks,
+        status: 'Interviewed'
+      });
+      setAddingScore(null);
+      setScore('');
+      setScoreRemarks('');
+      setActiveDropdown(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `applications/${addingScore.id}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -184,7 +256,7 @@ const RecruitmentView: React.FC<{ role?: string }> = ({ role }) => {
                       <span className="text-xs text-slate-500">{new Date(candidate.appliedDate).toLocaleDateString()}</span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity relative">
                         {candidate.status === 'Applied' && (
                           <button 
                             onClick={() => updateStatus(candidate.id, 'Shortlisted')}
@@ -194,6 +266,22 @@ const RecruitmentView: React.FC<{ role?: string }> = ({ role }) => {
                           </button>
                         )}
                         {candidate.status === 'Shortlisted' && (
+                          <button 
+                            onClick={() => setSchedulingInterview(candidate)}
+                            className="p-1.5 text-slate-400 hover:text-soft-amber hover:bg-white rounded-lg border border-transparent hover:border-slate-200" title="Schedule Interview"
+                          >
+                            <Calendar size={16} />
+                          </button>
+                        )}
+                        {candidate.status === 'Interviewing' && (
+                          <button 
+                            onClick={() => setAddingScore(candidate)}
+                            className="p-1.5 text-slate-400 hover:text-emerald hover:bg-white rounded-lg border border-transparent hover:border-slate-200" title="Add Score"
+                          >
+                            <Star size={16} />
+                          </button>
+                        )}
+                        {candidate.status === 'Interviewed' && (
                           <button 
                             onClick={() => updateStatus(candidate.id, 'Hired')}
                             className="p-1.5 text-slate-400 hover:text-emerald hover:bg-white rounded-lg border border-transparent hover:border-slate-200" title="Hire"
@@ -209,9 +297,78 @@ const RecruitmentView: React.FC<{ role?: string }> = ({ role }) => {
                             <XCircle size={16} />
                           </button>
                         )}
-                        <button className="p-1.5 text-slate-400 hover:text-navy hover:bg-white rounded-lg border border-transparent hover:border-slate-200">
-                          <MoreHorizontal size={16} />
-                        </button>
+                        
+                        <div className="relative">
+                          <button 
+                            onClick={() => setActiveDropdown(activeDropdown === candidate.id ? null : candidate.id)}
+                            className={`p-1.5 rounded-lg border transition-all ${
+                              activeDropdown === candidate.id ? 'bg-navy text-white border-navy' : 'text-slate-400 hover:text-navy hover:bg-white border-transparent hover:border-slate-200'
+                            }`}
+                          >
+                            <MoreHorizontal size={16} />
+                          </button>
+                          
+                          <AnimatePresence>
+                            {activeDropdown === candidate.id && (
+                              <>
+                                <div 
+                                  className="fixed inset-0 z-[60]" 
+                                  onClick={() => setActiveDropdown(null)}
+                                />
+                                <motion.div 
+                                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                  className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 p-2 z-[70] text-left"
+                                >
+                                  <button 
+                                    onClick={() => {
+                                      if (candidate.resume) {
+                                        const link = document.createElement('a');
+                                        link.href = candidate.resume.base64;
+                                        link.download = candidate.resume.name;
+                                        link.click();
+                                      }
+                                      setActiveDropdown(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-off-white rounded-lg transition-colors"
+                                  >
+                                    <Download size={14} />
+                                    Download Resume
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      setSchedulingInterview(candidate);
+                                      setActiveDropdown(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-off-white rounded-lg transition-colors"
+                                  >
+                                    <Calendar size={14} />
+                                    Schedule Interview
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      setAddingScore(candidate);
+                                      setActiveDropdown(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-off-white rounded-lg transition-colors"
+                                  >
+                                    <Star size={14} />
+                                    Add Interview Score
+                                  </button>
+                                  <div className="h-px bg-slate-100 my-1" />
+                                  <button 
+                                    onClick={() => updateStatus(candidate.id, 'Rejected')}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-muted-red hover:bg-muted-red/5 rounded-lg transition-colors"
+                                  >
+                                    <XCircle size={14} />
+                                    Reject Candidate
+                                  </button>
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -308,6 +465,153 @@ const RecruitmentView: React.FC<{ role?: string }> = ({ role }) => {
           )}
         </div>
       </div>
+
+      {/* Schedule Interview Modal */}
+      <AnimatePresence>
+        {schedulingInterview && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-navy/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="card w-full max-w-md p-8 space-y-6"
+            >
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold text-navy">Schedule Interview</h3>
+                <button 
+                  onClick={() => setSchedulingInterview(null)}
+                  className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-4">
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-navy font-bold shadow-sm">
+                  {schedulingInterview.name.charAt(0)}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-navy">{schedulingInterview.name}</p>
+                  <p className="text-[10px] text-slate-500">{schedulingInterview.jobTitle}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Interview Date</label>
+                  <input 
+                    type="date" 
+                    className="input-field" 
+                    value={interviewDate}
+                    onChange={(e) => setInterviewDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Interview Time</label>
+                  <input 
+                    type="time" 
+                    className="input-field" 
+                    value={interviewTime}
+                    onChange={(e) => setInterviewTime(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  onClick={() => setSchedulingInterview(null)}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleScheduleInterview}
+                  disabled={isSubmitting || !interviewDate || !interviewTime}
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : <Send size={16} />}
+                  <span>Schedule</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Score Modal */}
+      <AnimatePresence>
+        {addingScore && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-navy/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="card w-full max-w-md p-8 space-y-6"
+            >
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold text-navy">Interview Feedback</h3>
+                <button 
+                  onClick={() => setAddingScore(null)}
+                  className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Interview Score (1-5)</label>
+                  <div className="flex justify-between gap-2">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setScore(String(s))}
+                        className={`flex-1 py-3 rounded-xl border font-bold transition-all ${
+                          score === String(s) 
+                            ? 'bg-soft-amber text-white border-soft-amber shadow-lg shadow-soft-amber/20 scale-105' 
+                            : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Interview Remarks</label>
+                  <textarea 
+                    className="input-field h-32 resize-none" 
+                    placeholder="Provide detailed feedback about the candidate's performance..."
+                    value={scoreRemarks}
+                    onChange={(e) => setScoreRemarks(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  onClick={() => setAddingScore(null)}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleAddScore}
+                  disabled={isSubmitting || !score}
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : <Trophy size={16} />}
+                  <span>Save Feedback</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

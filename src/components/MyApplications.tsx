@@ -8,9 +8,12 @@ import {
   MapPin, 
   Calendar,
   FileText,
-  MessageSquare
+  MessageSquare,
+  X,
+  Info,
+  ExternalLink
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '../firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../firestoreUtils';
@@ -28,6 +31,7 @@ interface Application {
 const MyApplications: React.FC = () => {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -106,7 +110,10 @@ const MyApplications: React.FC = () => {
                 </div>
                 <div className="h-10 w-px bg-slate-100 hidden lg:block" />
                 <div className="flex gap-2 w-full sm:w-auto">
-                  <button className="btn-secondary text-xs flex items-center gap-2 flex-1 sm:flex-none justify-center">
+                  <button 
+                    onClick={() => setSelectedApp(app)}
+                    className="btn-secondary text-xs flex items-center gap-2 flex-1 sm:flex-none justify-center"
+                  >
                     <FileText size={16} />
                     <span>View Details</span>
                   </button>
@@ -157,6 +164,96 @@ const MyApplications: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Application Details Modal */}
+      <AnimatePresence>
+        {selectedApp && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-navy/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="card w-full max-w-2xl p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-auto"
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex gap-4 items-center">
+                  <div className="w-12 h-12 bg-emerald/10 text-emerald rounded-xl flex items-center justify-center">
+                    <Briefcase size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-navy">{selectedApp.jobTitle}</h3>
+                    <p className="text-sm text-slate-500">{selectedApp.department}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedApp(null)}
+                  className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Application Status</h4>
+                  <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      selectedApp.status === 'Hired' ? 'bg-emerald/10 text-emerald' :
+                      selectedApp.status === 'Rejected' ? 'bg-muted-red/10 text-muted-red' :
+                      'bg-blue-50 text-blue-500'
+                    }`}>
+                      {selectedApp.status === 'Hired' ? <CheckCircle2 size={20} /> : 
+                       selectedApp.status === 'Rejected' ? <XCircle size={20} /> : <Clock size={20} />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-navy">{selectedApp.status}</p>
+                      <p className="text-[10px] text-slate-500">Updated {selectedApp.lastUpdate || 'Recently'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Key Dates</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">Applied On</span>
+                      <span className="font-bold text-navy">{new Date(selectedApp.appliedDate).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">Interview Date</span>
+                      <span className="font-bold text-navy">{selectedApp.status === 'Interviewing' ? 'Scheduled' : 'TBD'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Next Steps</h4>
+                <div className="p-4 border border-blue-100 bg-blue-50/50 rounded-xl flex gap-4">
+                  <Info className="text-blue-500 shrink-0" size={20} />
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {selectedApp.status === 'Applied' && "Your application is currently being reviewed by our recruitment team. We'll notify you if you're shortlisted for the next round."}
+                    {selectedApp.status === 'Shortlisted' && "Great news! You've been shortlisted. Our team will reach out shortly to schedule your first interview."}
+                    {selectedApp.status === 'Interviewing' && "You have an upcoming interview. Please ensure you've reviewed the job description and are ready to join via the link provided."}
+                    {selectedApp.status === 'Hired' && "Congratulations! You've successfully completed the recruitment process. Welcome to the team!"}
+                    {selectedApp.status === 'Rejected' && "Thank you for your interest. Unfortunately, we've decided to move forward with other candidates at this time."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button className="btn-secondary flex-1 flex items-center justify-center gap-2">
+                  <ExternalLink size={16} />
+                  <span>View Job Post</span>
+                </button>
+                {selectedApp.status === 'Interviewing' && (
+                  <button className="btn-primary flex-1">Join Interview</button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

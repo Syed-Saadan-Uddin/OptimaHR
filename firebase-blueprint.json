@@ -13,7 +13,11 @@
         "joiningDate": { "type": "string" },
         "status": { "type": "string" },
         "designation": { "type": "string" },
-        "salary": { "type": "number" }
+        "salary": { "type": "number" },
+        "dob": { "type": "string" },
+        "emergencyContact": { "type": "object" },
+        "idProof": { "type": "object" },
+        "onboardingCompleted": { "type": "boolean" }
       },
       "required": ["uid", "name", "email", "role"]
     },
@@ -38,11 +42,19 @@
       "properties": {
         "candidateId": { "type": "string" },
         "jobId": { "type": "string" },
-        "status": { "type": "string", "enum": ["Applied", "Shortlisted", "Rejected", "Hired"] },
+        "jobTitle": { "type": "string" },
+        "status": { "type": "string", "enum": ["Applied", "Shortlisted", "Interviewing", "Interviewed", "Rejected", "Hired"] },
         "interviewScore": { "type": "number" },
-        "appliedDate": { "type": "string" }
+        "interviewDate": { "type": "string" },
+        "scoreRemarks": { "type": "string" },
+        "appliedDate": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "linkedin": { "type": "string" },
+        "coverLetter": { "type": "string" },
+        "resume": { "type": "object" }
       },
-      "required": ["candidateId", "jobId", "status", "appliedDate"]
+      "required": ["candidateId", "jobId", "jobTitle", "status", "appliedDate", "name", "email"]
     },
     "LeaveRequest": {
       "title": "LeaveRequest",
@@ -105,7 +117,7 @@
         "userId": { "type": "string", "description": "UID of the user who should receive the notification, or 'ALL' for global notifications" },
         "title": { "type": "string" },
         "message": { "type": "string" },
-        "type": { "type": "string", "enum": ["ANNOUNCEMENT", "PAYROLL", "LEAVE", "SYSTEM"] },
+        "type": { "type": "string", "enum": ["ANNOUNCEMENT", "PAYROLL", "LEAVE", "SYSTEM", "INTERVIEW"] },
         "read": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
